@@ -6,7 +6,7 @@ provider "aws" {
 }
 
 # iam
-resource "aws_iam_role" "example_lambda" {
+resource "aws_iam_role" "lambda_B" {
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -23,16 +23,25 @@ resource "aws_iam_role" "example_lambda" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "example_lambda" {
-  policy_arn = aws_iam_policy.example_lambda.arn
-  role       = aws_iam_role.example_lambda.name
+resource "aws_iam_role_policy_attachment" "lambda_B" {
+  policy_arn = aws_iam_policy.lambda_B.arn
+  role       = aws_iam_role.lambda_B.name
 }
 
-resource "aws_iam_policy" "example_lambda" {
-  policy = data.aws_iam_policy_document.example_lambda.json
+resource "aws_iam_policy" "lambda_B" {
+  policy = data.aws_iam_policy_document.lambda_B.json
 }
 
-data "aws_iam_policy_document" "example_lambda" {
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name = "/aws/lambda/lambda_B"
+  # name              = "/aws/lambda/${var.function_name}"
+  retention_in_days = 60
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+data "aws_iam_policy_document" "lambda_B" {
   statement {
     sid       = "AllowSQSPermissions"
     effect    = "Allow"
@@ -77,20 +86,21 @@ resource "aws_sqs_queue" "some_queue" {
 }
 
 # lambda
-data "archive_file" "example_lambda" {
+data "archive_file" "lambda_B" {
   type        = "zip"
   source_file = "${path.module}/lambda_B.py"
   output_path = "${path.module}/lambda_B.py.zip"
 }
 
-resource "aws_lambda_function" "example_lambda" {
-  function_name = "example_lambda"
-  handler       = "example_lambda.handler"
-  role          = aws_iam_role.example_lambda.arn
+resource "aws_lambda_function" "lambda_B" {
+  function_name = "lambda_B"
+  handler       = "lambda_B.handler"
+  role          = aws_iam_role.lambda_B.arn
   runtime       = "python3.10"
+  depends_on    = [aws_cloudwatch_log_group.lambda_log_group]
 
-  filename         = data.archive_file.example_lambda.output_path
-  source_code_hash = data.archive_file.example_lambda.output_base64sha256
+  filename         = data.archive_file.lambda_B.output_path
+  source_code_hash = data.archive_file.lambda_B.output_base64sha256
 
   timeout     = 30
   memory_size = 128
@@ -101,7 +111,7 @@ resource "aws_lambda_event_source_mapping" "event_source_mapping" {
   batch_size       = 1
   event_source_arn = aws_sqs_queue.some_queue.arn
   enabled          = true
-  function_name    = aws_lambda_function.example_lambda.arn
+  function_name    = aws_lambda_function.lambda_B.arn
 }
 
 # outputs
