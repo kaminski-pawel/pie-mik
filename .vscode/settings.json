@@ -1,6 +1,17 @@
 {
+  "editor.insertSpaces": true,
+  "editor.minimap.enabled": true,
+  "editor.linkedEditing": true,
+  "editor.unicodeHighlight.invisibleCharacters": false,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {},
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
   },
-  "python.formatting.provider": "none"
+  "python.formatting.provider": "none",
+  "python.formatting.blackArgs": ["--line-length=90"],
+  "isort.args": ["--profile", "black", "--line-length", "90"]
 }
