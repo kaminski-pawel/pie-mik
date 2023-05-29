@@ -1,13 +1,11 @@
 import responses
-import requests
-from config import CONSTANTS
-from extract import LinksRetriever
+from src.config import CONSTANTS
+from src.extract import LinksRetriever
 
 
 def _open_txt(fn: str) -> str:
     with open(fn) as f:
         return f.read()
-    return ""
 
 
 @responses.activate

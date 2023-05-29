@@ -1,7 +1,7 @@
 import bs4
 import requests
 import typing as t
-from config import CONSTANTS
+from src.config import CONSTANTS
 
 
 class LinksRetriever:
