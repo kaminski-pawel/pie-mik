@@ -120,8 +120,8 @@ resource "aws_cloudwatch_event_target" "trigger_lambda_A" {
 # lambda A
 data "archive_file" "lambda_A" {
   type        = "zip"
-  source_file = "${path.module}/src/lambda_A.py"
-  output_path = "${path.module}/src/lambda_A.py.zip"
+  source_file = "${path.module}/../src/lambda_A.py"
+  output_path = "${path.module}/../src/lambda_A.py.zip"
 }
 
 resource "aws_lambda_function" "lambda_A" {
@@ -145,8 +145,8 @@ resource "aws_sqs_queue" "links_queue" {
 # lambda B
 data "archive_file" "lambda_B" {
   type        = "zip"
-  source_file = "${path.module}/src/lambda_B.py"
-  output_path = "${path.module}/src/lambda_B.py.zip"
+  source_file = "${path.module}/../src/lambda_B.py"
+  output_path = "${path.module}/../src/lambda_B.py.zip"
 }
 
 resource "aws_lambda_function" "lambda_B" {
@@ -169,11 +169,6 @@ resource "aws_lambda_event_source_mapping" "event_source_mapping" {
   event_source_arn = aws_sqs_queue.links_queue.arn
   enabled          = true
   function_name    = aws_lambda_function.lambda_B.arn
-}
-
-# s3
-data "aws_s3_bucket" "lambda_B_target" {
-  bucket = "pie-mik-lambda-b-target"
 }
 
 # outputs
