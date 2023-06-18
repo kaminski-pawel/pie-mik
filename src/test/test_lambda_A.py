@@ -1,7 +1,8 @@
 import responses
-from src.config import CONSTANTS
-from src.extract import LinksRetriever
+from src.A.lambda_function import LinksRetriever
 
+
+PIE_MIK_RESP_MOCK_FILE = "src/test/pie_mik_mock_resp.txt"
 
 def _open_txt(fn: str) -> str:
     with open(fn) as f:
@@ -10,13 +11,14 @@ def _open_txt(fn: str) -> str:
 
 @responses.activate
 def test_link_extraction():
+    retriever = LinksRetriever()
     responses.add(
         responses.GET,
-        CONSTANTS["PIE_MIK_URL"],
-        _open_txt(CONSTANTS["PIE_MIK_RESP_MOCK_FILE"]),
+        retriever.PIE_MIK_URL,
+        _open_txt(PIE_MIK_RESP_MOCK_FILE),
         status=200,
     )
-    links = LinksRetriever().retrieve()
+    links = retriever.retrieve()
     should_be = [
         "https://pie.net.pl/wp-content/uploads/2023/05/MIK-w-czasie05.xlsx",
         "https://pie.net.pl/wp-content/uploads/2023/05/Komponenty-MIK05.xlsx",
