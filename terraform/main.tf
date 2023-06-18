@@ -1,17 +1,40 @@
 # main
 provider "aws" {
-  region     = "eu-west-1"
+  region     = var.aws_region
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
 }
 
-# iam for lambda A
+# iam for eventbridge
 resource "aws_lambda_permission" "allow_eventbridge" {
   statement_id  = "AllowExecutionFromEventBridge"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda_A.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.every_5_minutes.arn
+}
+
+# iam for lambda A
+data "aws_iam_policy_document" "lambda_A" {
+  statement {
+    sid       = "AllowSQSPermissions"
+    effect    = "Allow"
+    resources = ["arn:aws:sqs:*"]
+
+    actions = [
+      "sqs:SendMessage",
+      "sqs:SendMessageBatch",
+    ]
+  }
+}
+
+resource "aws_iam_policy" "lambda_A" {
+  policy = data.aws_iam_policy_document.lambda_A.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_A" {
+  policy_arn = aws_iam_policy.lambda_A.arn
+  role       = aws_iam_role.lambda_assume_role.name
 }
 
 # iam for lambda B
@@ -30,11 +53,6 @@ resource "aws_iam_role" "lambda_assume_role" {
   ]
 }
 EOF
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_A" {
-  policy_arn = aws_iam_policy.lambda_B.arn
-  role       = aws_iam_role.lambda_assume_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_B" {
@@ -63,20 +81,20 @@ data "aws_iam_policy_document" "lambda_B" {
   statement {
     sid       = "AllowInvokingLambdas"
     effect    = "Allow"
-    resources = ["arn:aws:lambda:eu-west-1:*:function:*"]
+    resources = ["arn:aws:lambda:${var.aws_region}:*:function:*"]
     actions   = ["lambda:InvokeFunction"]
   }
 
   statement {
     sid       = "AllowCreatingLogGroups"
     effect    = "Allow"
-    resources = ["arn:aws:logs:eu-west-1:*:*"]
+    resources = ["arn:aws:logs:${var.aws_region}:*:*"]
     actions   = ["logs:CreateLogGroup"]
   }
   statement {
     sid       = "AllowWritingLogs"
     effect    = "Allow"
-    resources = ["arn:aws:logs:eu-west-1:*:log-group:/aws/lambda/*:*"]
+    resources = ["arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/*:*"]
 
     actions = [
       "logs:CreateLogStream",
@@ -96,8 +114,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group_A" {
 
 # log group for lambda B
 resource "aws_cloudwatch_log_group" "lambda_log_group_B" {
-  name = "/aws/lambda/lambda_B"
-  # name              = "/aws/lambda/${var.function_name}"
+  name              = "/aws/lambda/lambda_B"
   retention_in_days = 60
   lifecycle {
     prevent_destroy = false
@@ -118,23 +135,23 @@ resource "aws_cloudwatch_event_target" "trigger_lambda_A" {
 }
 
 # lambda A
-data "archive_file" "lambda_A" {
-  type        = "zip"
-  source_file = "${path.module}/../src/lambda_A.py"
-  output_path = "${path.module}/../src/lambda_A.py.zip"
-}
-
 resource "aws_lambda_function" "lambda_A" {
-  function_name    = "lambda_A"
-  handler          = "lambda_A.handler"
-  role             = aws_iam_role.lambda_assume_role.arn
-  runtime          = "python3.10"
-  depends_on       = [aws_cloudwatch_log_group.lambda_log_group_A]
-  filename         = data.archive_file.lambda_A.output_path
-  source_code_hash = data.archive_file.lambda_A.output_base64sha256
-
+  function_name = "lambda_A"
+  handler       = "lambda_function.lambda_handler"
+  role          = aws_iam_role.lambda_assume_role.arn
+  runtime       = var.aws_lambda_runtime
+  depends_on = [
+    aws_cloudwatch_log_group.lambda_log_group_A,
+    aws_sqs_queue.links_queue
+  ]
+  filename    = "${path.module}/../dist/A.zip"
   timeout     = 60
   memory_size = 128
+  environment {
+    variables = {
+      SQS_ENDPOINT_URL = aws_sqs_queue.links_queue.id
+    }
+  }
 }
 
 # sqs
@@ -153,7 +170,7 @@ resource "aws_lambda_function" "lambda_B" {
   function_name = "lambda_B"
   handler       = "lambda_B.handler"
   role          = aws_iam_role.lambda_assume_role.arn
-  runtime       = "python3.10"
+  runtime       = var.aws_lambda_runtime
   depends_on    = [aws_cloudwatch_log_group.lambda_log_group_B]
 
   filename         = data.archive_file.lambda_B.output_path
