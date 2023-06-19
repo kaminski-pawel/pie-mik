@@ -151,7 +151,7 @@ resource "aws_lambda_function" "lambda_A" {
     aws_sqs_queue.links_queue
   ]
   filename    = "${path.module}/../dist/A.zip"
-  timeout     = 60
+  timeout     = 30
   memory_size = 128
   environment {
     variables = {
