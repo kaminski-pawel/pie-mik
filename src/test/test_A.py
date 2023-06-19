@@ -1,16 +1,18 @@
+# pylint: disable=missing-function-docstring
 import responses
-from src.A.lambda_function import LinksRetriever
 
+from A.lambda_function import LinksRetriever
 
 PIE_MIK_RESP_MOCK_FILE = "src/test/pie_mik_mock_resp.txt"
 
-def _open_txt(fn: str) -> str:
-    with open(fn) as f:
-        return f.read()
+
+def _open_txt(file_name: str) -> str:
+    with open(file_name, encoding="utf-8") as file:
+        return file.read()
 
 
 @responses.activate
-def test_link_extraction():
+def test_link_extraction() -> None:
     retriever = LinksRetriever()
     responses.add(
         responses.GET,
@@ -28,5 +30,5 @@ def test_link_extraction():
         "https://pie.net.pl/wp-content/uploads/2023/05/Wyniki-badan-ankietowych-firm05.xlsx",
     ]
     assert len(links) == len(should_be)
-    for l in links:
-        assert l in should_be
+    for link in links:
+        assert link in should_be
