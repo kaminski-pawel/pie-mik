@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# LAMBDA_SOURCE_CODE_DIRS=("A" "B")
-LAMBDA_SOURCE_CODE_DIRS=("A")
+# LAMBDA_SOURCE_CODE_DIRS=("B")
+LAMBDA_SOURCE_CODE_DIRS=("A" "B")
 DIR_ROOT="$PWD"
 RUNTIME=python3.10
 
 cd $DIR_ROOT
-rm -r dist/*
+# rm -r dist/*
 mkdir -p dist
 
 for path in ${LAMBDA_SOURCE_CODE_DIRS[@]}; do

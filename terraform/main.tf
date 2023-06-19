@@ -11,7 +11,7 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda_A.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.every_5_minutes.arn
+  source_arn    = aws_cloudwatch_event_rule.monthly_cron_rate.arn
 }
 
 # iam for lambda A
@@ -19,8 +19,7 @@ data "aws_iam_policy_document" "lambda_A" {
   statement {
     sid       = "AllowSQSPermissions"
     effect    = "Allow"
-    resources = ["arn:aws:sqs:*"]
-
+    resources = [aws_sqs_queue.links_queue.arn]
     actions = [
       "sqs:SendMessage",
       "sqs:SendMessageBatch",
@@ -68,8 +67,7 @@ data "aws_iam_policy_document" "lambda_B" {
   statement {
     sid       = "AllowSQSPermissions"
     effect    = "Allow"
-    resources = ["arn:aws:sqs:*"]
-
+    resources = [aws_sqs_queue.links_queue.arn]
     actions = [
       "sqs:ChangeMessageVisibility",
       "sqs:DeleteMessage",
@@ -77,14 +75,23 @@ data "aws_iam_policy_document" "lambda_B" {
       "sqs:ReceiveMessage",
     ]
   }
-
+  statement {
+    sid       = "AllowS3Permissions"
+    effect    = "Allow"
+    resources = ["arn:aws:s3:::pie-mik-lambda-b-target/*"]
+    actions = [
+      "s3:PutObject",
+      "s3:PutObjectAcl",
+      "s3:GetObject",
+      "s3:GetObjectAcl",
+    ]
+  }
   statement {
     sid       = "AllowInvokingLambdas"
     effect    = "Allow"
     resources = ["arn:aws:lambda:${var.aws_region}:*:function:*"]
     actions   = ["lambda:InvokeFunction"]
   }
-
   statement {
     sid       = "AllowCreatingLogGroups"
     effect    = "Allow"
@@ -95,7 +102,6 @@ data "aws_iam_policy_document" "lambda_B" {
     sid       = "AllowWritingLogs"
     effect    = "Allow"
     resources = ["arn:aws:logs:${var.aws_region}:*:log-group:/aws/lambda/*:*"]
-
     actions = [
       "logs:CreateLogStream",
       "logs:PutLogEvents",
@@ -122,14 +128,14 @@ resource "aws_cloudwatch_log_group" "lambda_log_group_B" {
 }
 
 # eventbridge scheduler
-resource "aws_cloudwatch_event_rule" "every_5_minutes" {
-  name                = "pie-mik-event-rule-every-5min"
-  description         = "trigger lambda every 5 minutes"
-  schedule_expression = "rate(5 minutes)"
+resource "aws_cloudwatch_event_rule" "monthly_cron_rate" {
+  name                = "pie-mik-event-rule-every-10th-each-month"
+  description         = "trigger lambda on the 10th day of every month at midnight"
+  schedule_expression = "cron(0 0 10 * ? *)"
 }
 
 resource "aws_cloudwatch_event_target" "trigger_lambda_A" {
-  rule      = aws_cloudwatch_event_rule.every_5_minutes.name
+  rule      = aws_cloudwatch_event_rule.monthly_cron_rate.name
   target_id = "lambda_A"
   arn       = aws_lambda_function.lambda_A.arn
 }
@@ -160,24 +166,20 @@ resource "aws_sqs_queue" "links_queue" {
 }
 
 # lambda B
-data "archive_file" "lambda_B" {
-  type        = "zip"
-  source_file = "${path.module}/../src/lambda_B.py"
-  output_path = "${path.module}/../src/lambda_B.py.zip"
-}
-
 resource "aws_lambda_function" "lambda_B" {
   function_name = "lambda_B"
-  handler       = "lambda_B.handler"
+  handler       = "lambda_function.lambda_handler"
   role          = aws_iam_role.lambda_assume_role.arn
   runtime       = var.aws_lambda_runtime
   depends_on    = [aws_cloudwatch_log_group.lambda_log_group_B]
-
-  filename         = data.archive_file.lambda_B.output_path
-  source_code_hash = data.archive_file.lambda_B.output_base64sha256
-
-  timeout     = 30
-  memory_size = 128
+  filename      = "${path.module}/../dist/B.zip"
+  timeout       = 30
+  memory_size   = 128
+  environment {
+    variables = {
+      S3_PIE_MIK_LAMBDA_B_TARGET = var.aws_s3_pie_mik_lambda_b_target
+    }
+  }
 }
 
 # event source mapping
@@ -186,9 +188,4 @@ resource "aws_lambda_event_source_mapping" "event_source_mapping" {
   event_source_arn = aws_sqs_queue.links_queue.arn
   enabled          = true
   function_name    = aws_lambda_function.lambda_B.arn
-}
-
-# outputs
-output "sqs_url" {
-  value = aws_sqs_queue.links_queue.id
 }

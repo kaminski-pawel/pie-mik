@@ -1,4 +1,5 @@
 -r src/A/requirements.txt
+-r src/B/requirements.txt
 
 pytest>=7.3.1,<7.4.0
 responses>=0.23.1,<0.24.0

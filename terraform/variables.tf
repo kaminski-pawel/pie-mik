@@ -21,3 +21,9 @@ variable "aws_lambda_runtime" {
   description = "AWS Lambda runtime"
   type        = string
 }
+
+variable "aws_s3_pie_mik_lambda_b_target" {
+  default     = "pie-mik-lambda-b-target"
+  description = "S3 to which the data should be uploaded"
+  type        = string
+}
