@@ -1,12 +1,13 @@
+# pylint: disable=missing-function-docstring
+import json
+import logging
+import os
+import typing as t
+
 import boto3
 import bs4
 import dotenv
-import os
-import logging
-import json
 import requests
-import typing as t
-
 
 dotenv.load_dotenv()
 
@@ -14,20 +15,19 @@ dotenv.load_dotenv()
 def lambda_handler(event, context):
     set_logger()
     links = LinksRetriever().retrieve()
-    logging.info("Retrieved links: {}".format(json.dumps(links)))
+    logging.info("Retrieved links: %s", json.dumps(links))
     responses = sqs_send_message_batch(links)
     responses_as_str = json.dumps(responses)
-    logging.info("SQS send message batch responses: {}".format(responses_as_str))
-    return {
-        "statusCode": 200,
-        "body": responses_as_str
-    }
+    logging.info("SQS send message batch responses: %s", responses_as_str)
+    return {"statusCode": 200, "body": responses_as_str}
+
 
 def set_logger():
     if logging.getLogger().hasHandlers():
         logging.getLogger().setLevel(logging.INFO)
     else:
         logging.basicConfig(level=logging.INFO)
+
 
 def sqs_send_message_batch(messages: t.List[str]):
     """
@@ -37,22 +37,27 @@ def sqs_send_message_batch(messages: t.List[str]):
     max_batch_size = 10
     responses = []
     client = boto3.client("sqs")
-    batches = [messages[x : x + max_batch_size] for x in range(0, len(messages), max_batch_size)]
+    batches = [
+        messages[x : x + max_batch_size] for x in range(0, len(messages), max_batch_size)
+    ]
     for batch in batches:
-        responses.append(client.send_message_batch(
-            QueueUrl=os.getenv("SQS_ENDPOINT_URL"),
-            Entries=[
-                {
-                    "Id": str(hash(entry)),
-                    "MessageBody": entry,
-                } for entry in batch
-            ],
-        ))
+        responses.append(
+            client.send_message_batch(
+                QueueUrl=os.getenv("SQS_ENDPOINT_URL"),
+                Entries=[
+                    {
+                        "Id": str(hash(entry)),
+                        "MessageBody": entry,
+                    }
+                    for entry in batch
+                ],
+            )
+        )
     return responses
 
 
 class LinksRetriever:
-    PIE_MIK_URL= "https://mik.pie.net.pl/"
+    PIE_MIK_URL = "https://mik.pie.net.pl/"
 
     def retrieve(self) -> t.List[str]:
         """
@@ -80,10 +85,10 @@ class LinksRetriever:
             "Accept-Encoding": "gzip, deflate, br",
             "Accept-Language": "pl-PL,pl;q=0.9",
         }
-        return requests.get(self.PIE_MIK_URL, headers=headers)
+        return requests.get(self.PIE_MIK_URL, headers=headers, timeout=8)
 
-    def _parse_response(self, r: requests.models.Response) -> bs4.BeautifulSoup:
-        return bs4.BeautifulSoup(r.content, "html.parser")
+    def _parse_response(self, resp: requests.models.Response) -> bs4.BeautifulSoup:
+        return bs4.BeautifulSoup(resp.content, "html.parser")
 
     def _get_links_to_xlsx(self, soup: bs4.BeautifulSoup) -> t.List[str]:
         return [

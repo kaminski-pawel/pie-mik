@@ -1,4 +1,4 @@
-# pylint: disable=invalid-name, missing-function-docstring, logging-fstring-interpolation
+# pylint: disable=invalid-name, missing-function-docstring
 import logging
 import os
 import typing as t
