@@ -6,7 +6,14 @@ The aim of the project is to download the results of business cycle research. Th
 
 ## Architecture
 
-// TODO
+![diagram](./diagram.drawio.svg)
+
+1. EventBridge triggers Lambda A once a month
+2. Lambda A downloads links for further processing from PIE-MIK website
+3. Lambda A sends message batch to SQS with links
+4. Lambda B is invoked when links are pushed to SQS queue
+5. Each instance of Lambda B downloads one file from a given link
+6. Each instance of Lambda B uploads its file to S3
 
 ## How to deploy?
 
