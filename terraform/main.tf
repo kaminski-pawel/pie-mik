@@ -112,7 +112,7 @@ data "aws_iam_policy_document" "lambda_B" {
 # log group for lambda A
 resource "aws_cloudwatch_log_group" "lambda_log_group_A" {
   name              = "/aws/lambda/lambda_A"
-  retention_in_days = 60
+  retention_in_days = 120
   lifecycle {
     prevent_destroy = false
   }
@@ -121,7 +121,7 @@ resource "aws_cloudwatch_log_group" "lambda_log_group_A" {
 # log group for lambda B
 resource "aws_cloudwatch_log_group" "lambda_log_group_B" {
   name              = "/aws/lambda/lambda_B"
-  retention_in_days = 60
+  retention_in_days = 120
   lifecycle {
     prevent_destroy = false
   }
